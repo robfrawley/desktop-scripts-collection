@@ -1,0 +1,3 @@
+[submodule "bright-library"]
+	path = bright-library
+	url = https://github.com/src-run/bright-library.git
