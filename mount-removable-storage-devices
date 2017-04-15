@@ -3,7 +3,7 @@
 #
 # configuration variables
 #
-FILEPATH_BRIGHT_LIB="${HOME}/scripts/bright-library/bright.bash"
+FILEPATH_BRIGHT_LIB="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../lib/bright-library/bright.bash"
 FILEPATH_MOUNT_CONF="${HOME}/.removable-storage-device-mounts"
 
 # home directory path environment variable required
