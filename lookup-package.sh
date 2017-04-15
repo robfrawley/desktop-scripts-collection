@@ -1,1 +1,0 @@
-for file in `ls ../augustus-*/composer.json`; do echo "version: $(grep -P 'dev-master"' $file | grep -P -o '"[0-9]\.[0-9]\-dev"'), name: $(grep -P '^  "name"' $file | grep -P -o '"src-run/[^"]+"')"; done
