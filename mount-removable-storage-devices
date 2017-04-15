@@ -3,8 +3,14 @@
 #
 # configuration variables
 #
-FILEPATH_BRIGHT_LIB="$HOME/bin/bright-library/bright.bash"
-FILEPATH_MOUNT_CONF="$HOME/.external-storage-mounts"
+FILEPATH_BRIGHT_LIB="${HOME}/scripts/bright-library/bright.bash"
+FILEPATH_MOUNT_CONF="${HOME}/.removable-storage-device-mounts"
+
+# home directory path environment variable required
+if [[ -z ${HOME} ]]; then
+  echo "Required environment variable missing: \$HOME"
+  exit 1
+fi
 
 # ensure required bright library exists
 if [[ ! -f "${FILEPATH_BRIGHT_LIB}" ]]; then
@@ -226,6 +232,16 @@ function get_mount_info() {
 }
 
 #
+# ensure some (at least one) mount(s) exist
+#
+function run_ensure_mounts() {
+  if [[ ! $(get_mounts) ]]; then
+    out_error "No mounts definied in your configuration file (${FILEPATH_MOUNT_CONF})"
+    exit 2
+  fi
+}
+
+#
 # output mount status on single path
 #
 function run_status_on() {
@@ -357,18 +373,22 @@ function run_action_mount() {
 function main() {
   case "${1:-usage}" in
     c|config)
+      run_ensure_mounts
       run_action_config
       ;;
 
     s|status)
+      run_ensure_mounts
       run_action_status
       ;;
 
     m|mount|up|on)
+      run_ensure_mounts
       run_action_mount
       ;;
 
     u|unmount|dn|off)
+      run_ensure_mounts
       run_action_unmount
       ;;
 
