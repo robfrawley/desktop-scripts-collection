@@ -3,130 +3,130 @@
 #
 # configuration variables
 #
-FILEPATH_BRIGHT_LIB="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../lib/bright-library/bright.bash"
-FILEPATH_MOUNT_CONF="${HOME}/.removable-storage-device-mounts"
+PATH_BRIGHT_LIB="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../lib/bright-library/bright.bash"
+PATH_USER_MOUNT="${HOME}/.removable-storage-device-mounts"
 
-# home directory path environment variable required
-if [[ -z ${HOME} ]]; then
-  echo "Required environment variable missing: \$HOME"
-  exit 1
+#
+# source the bright library
+#
+if [[ ! -f "${PATH_BRIGHT_LIB}" ]]; then
+  echo "Unable to source required \"bright library\" dependency at \"${PATH_BRIGHT_LIB}\"."
+  exit -1
+else
+  source "${PATH_BRIGHT_LIB}"
 fi
 
-# ensure required bright library exists
-if [[ ! -f "${FILEPATH_BRIGHT_LIB}" ]]; then
-  echo "Required dependency missing: ${FILEPATH_BRIGHT_LIB}"
-  exit 1
-fi
-
-# ensure required mount configuration file exists
-if [[ ! -f "${FILEPATH_MOUNT_CONF}" ]]; then
-  echo "Required mount configuration file missing: ${FILEPATH_MOUNT_CONF}"
-  exit 1
-fi
-
-# source bright library
-source "${FILEPATH_BRIGHT_LIB}"
+#
+# setup global-scope variable containing active mount info
+#
+declare -Ag mount_data=(["path"]="" ["uuid"]="" ["opts"]="" ["type"]="")
 
 #
-# output newline character
+# write out space character
 #
-function out_newline() {
-  echo -en "\n"
-}
-
-#
-#output space character
-#
-function out_space() {
+function write_space() {
   echo -en " "
 }
 
 #
-# output error message
+# write out newline character
 #
-function out_error() {
-  local error="${1:-An undefined error occurred!}"
-
-  bright_out_builder " ERROR " "color:white" "color_bg:red" "control:style bold"
-  bright_out_builder " ${error}...\n" "color:white"
+function write_newline() {
+  echo -en "\n"
 }
 
 #
-# output command header
+# write out error message and optionally exit
 #
-function out_header() {
+function write_error() {
+  local returns="${1:-0}"
+  local message="${2:-An undefined error occurred!}"
+
+  bright_out_builder " ERROR " "color:white" "color_bg:red" "control:style bold"
+  bright_out_builder " ${message}...\n" "color:white"
+
+  if [[ ${returns} -ne 0 ]]; then
+    exit ${returns}
+  fi
+}
+
+#
+# write out command header
+#
+function write_header() {
   local header="${1}"
 
   bright_out_builder " -- ${header^^} -- \n" "color:magenta" "control:style bold" "control:style reverse"
 }
 
 #
-# output command status
+# write out command status
 #
-function out_status() {
+function write_status() {
   local index="${1}"
   local value="${2}"
   local color_fb="${3}"
   local color_bg="${4}"
   local style_bold="${5:-0}"
 
-  out_section_beg "${index}"
+  write_section_init "${index}"
+
   if [[ ${style_bold} -eq 0 ]]; then
     bright_out_builder " ${value} " "color:${color_fb}" "control:style reverse" "color_bg:${color_bg}" "control:style bold"
   else
     bright_out_builder " ${value} " "color:${color_fb}" "control:style reverse" "color_bg:${color_bg}"
   fi
 
-  out_section_end
+  write_section_stop
 }
 
 #
-# output command status okay
+# write out command status okay
 #
-function out_status_okay() {
-  out_status "${1}" "${2:-okay}" green black
+function write_status_okay() {
+  write_status "${1}" "${2:-okay}" green black
 }
 
 #
-# output command status warn
+# write out command status warn
 #
-function out_status_warn() {
-  out_status "${1}" "${2:-warn}" red white
+function write_status_warn() {
+  write_status "${1}" "${2:-warn}" red white
 }
 
 #
-# output command status skip
+# write out command status skip
 #
-function out_status_skip() {
-  out_status "${1}" "${2:-skip}" blue black 1
+function write_status_skip() {
+  write_status "${1}" "${2:-skip}" blue black 1
 }
 
 #
-# output whole section
+# write out whole section
 #
-function out_section() {
+function write_section() {
   local section="${1}"
   local value="${2}"
   local style="${3:-none}"
 
-  out_section_beg "${section}"
-  out_section_val "${value}" "white" "${style}"
-  out_section_end
+  write_section_init "${section}"
+  write_section_data "${value}" "white" "${style}"
+  write_section_stop
 }
 
 #
-# output section name and beginning delimiter
+# write out section name and beginning delimiter
 #
-function out_section_beg() {
+function write_section_init() {
   local section="${1}"
 
   bright_out_builder "${section}=[" "color:white" "control:style bright"
 }
 
 #
-# output section contents
+# write out section contents
 #
-function out_section_val() {
+function write_section_data() {
   local value="${1}"
   local color="${2:-white}"
   local style="${3:-none}"
@@ -139,192 +139,253 @@ function out_section_val() {
 }
 
 #
-# output the basic mount information from the global array
+# write out section ending delimiter
 #
-function out_mount_info() {
-  out_section "uuid" "${mount_info[uuid]}"
-  out_section "path" "${mount_info[path]}" bold
-  out_section "type" "${mount_info[type]}"
-  out_section "opts" "${mount_info[opts]}"
-}
-
-#
-# output section ending delimiter
-#
-function out_section_end() {
+function write_section_stop() {
   bright_out_builder "] " "color:white" "control:style bright"
 }
 
 #
-# output configuration index and value
+# write out definition name and value
 #
-function out_config() {
+function write_definition() {
   local index="${1}"
   local value="${2}"
 
-  out_section_beg "${index}"
-  out_section_val "${value}"
-  out_section_end
-  out_newline
+  write_section_init "${index}"
+  write_section_data "${value}"
+  write_section_stop
+
+  write_newline
 }
 
 #
-# output usage parameter and description
+# write out usage cli parameter and description
 #
-function out_usage_parameter() {
+function write_cli_option() {
   local parameter="${1}"
   local description="${2}"
 
   printf "\t%-7s %s" ${parameter}
-  out_space
+  write_space
   bright_out_builder "${description}" "control:style bright"
-  out_newline
+
+  write_newline
 }
 
 #
-# output usage command information
+# write out usage command information
 #
-function out_usage_command() {
+function write_cli_commands() {
   bright_out_builder "Usage:\n\t./${0##*/}" "control:style bold"
 
   for parameter in ${@}; do
     bright_out_builder " [${parameter}]" "control:style bold" "control:style bright"
   done
 
-  out_newline
-  out_newline
+  write_newline
+  write_newline
+}
+
+#
+# write out the basic mount information from the global array
+#
+function write_mount_information() {
+  write_section "uuid" "${mount_data["uuid"]}"
+  write_section "path" "${mount_data["path"]}" bold
+  write_section "type" "${mount_data["type"]}"
+  write_section "opts" "${mount_data["opts"]}"
 }
 
 #
 # require elevated privileges or display error
 #
-function req_root() {
+function is_user_root() {
   if [[ $EUID -ne 0 ]]; then
-    out_error "This action must be run with elevated privileges. Perhaps you should use \"sudo\"?"
-    exit 1
+    write_error 255 "This action MUST be run with elevated privileges. Perhaps you should use \"sudo\" to do so"
+  fi
+}
+
+#
+# ensure mount config file is not empty
+#
+function is_mount_config_valid() {
+  if [[ ! $(get_mount_conf) ]]; then
+    write_error 200 "The user mount configuration file \"${PATH_USER_MOUNT}\" appears to be empty"
+  fi
+}
+
+#
+# ensure mount config file exists
+#
+function is_mount_config_present() {
+  if [[ ! -f "${PATH_USER_MOUNT}" ]]; then
+    write_error 201 "The user mount configuration file \"${PATH_USER_MOUNT}\" does not exist"
   fi
 }
 
 #
 # get mount paths
 #
-function get_mounts() {
-    echo "$(cat ${FILEPATH_MOUNT_CONF})"
+function get_mount_conf() {
+  echo "$(cat ${PATH_USER_MOUNT})"
 }
 
 #
 # get the mount info for the provided path
 #
-function get_mount_info() {
+function get_mount_data() {
   local path="${1}"
-  declare -Ag mount_info=([path]="" [info]="" [uuid]="" [opts]="" [type]="")
+  declare -Ag mount_data=(["path"]="" ["uuid"]="" ["opts"]="" ["type"]="")
 
-  mount_info[path]="${path}"
-  mount_info[info]="$(mount | grep ${mount_info[path]})"
-  mount_info[uuid]="$(cat /etc/fstab | grep ${mount_info[path]} | grep -oP 'UUID=[a-z0-9-]+' | cut -c 6-)"
-  mount_info[opts]="$(cat /etc/fstab | grep ${mount_info[path]} | grep -oP 'defaults[^\s]+')"
-  mount_info[type]="$(cat /etc/fstab | grep ${mount_info[path]} | grep -oP "${mount_info[path]}\s+[^\s]+" | grep -oP '\s[^\s]+' | cut -c 2-)"
-  mount_info[stat]=1
+  mount_data["path"]="${path}"
+  mount_data["uuid"]="$(get_mount_data_uuid ${path})"
+  mount_data["opts"]="$(get_mount_data_opts ${path})"
+  mount_data["type"]="$(get_mount_data_type ${path})"
+  mount_data["stat"]=1
 
-  if [[ ${mount_info[info]} ]]; then
-    mount_info[stat]=0
+  if [[ $(get_mount_data_stat ${path}) ]]; then
+    mount_data["stat"]=0
   fi
 }
 
 #
-# ensure some (at least one) mount(s) exist
+# helper to retrieve mount info data from path
 #
-function run_ensure_mounts() {
-  if [[ ! $(get_mounts) ]]; then
-    out_error "No mounts definied in your configuration file (${FILEPATH_MOUNT_CONF})"
-    exit 2
-  fi
+function get_mount_data_stat() {
+  local path="${1}"
+  local work=""
+
+  work="$(mount | grep ${path} 2>/dev/null)"
+
+  echo "${work}"
+}
+
+#
+# helper to retrieve mount uuid data from path
+#
+function get_mount_data_uuid() {
+  local path="${1}"
+  local work=""
+
+  work="$(cat /etc/fstab | grep ${path} 2>/dev/null)"
+  work="$(echo ${work} | grep -oP 'UUID=[a-z0-9-]+' 2>/dev/null)"
+  work="$(echo ${work} | cut -c 6- 2>/dev/null)"
+
+  echo "${work}"
+}
+
+#
+# helper to retrieve mount options data from path
+#
+function get_mount_data_opts() {
+  local path="${1}"
+  local work=""
+
+  work="$(cat /etc/fstab | grep ${path} 2>/dev/null)"
+  work="$(echo ${work} | grep -oP 'defaults[^\s]+' 2>/dev/null)"
+
+  echo "${work}"
+}
+
+#
+# helper to retrieve mount type data from path
+#
+function get_mount_data_type() {
+  local path="${1}"
+  local work=""
+
+  work="$(cat /etc/fstab | grep -oP "${path}\s+[^\s]+" 2>/dev/null)"
+  work="$(echo ${work} | grep -oP '\s[^\s]+' 2>/dev/null)"
+  work="$(echo ${work} | cut -c 1- 2>/dev/null)"
+
+  echo "${work}"
 }
 
 #
 # output mount status on single path
 #
 function run_status_on() {
-  get_mount_info "${1}"
+  get_mount_data "${1}"
 
-  if [[ ${mount_info[stat]} -eq 1 ]]; then
-    out_status_warn status down
+  if [[ ${mount_data["stat"]} -eq 1 ]]; then
+    write_status_warn status down
   else
-    out_status_okay status
+    write_status_okay status
   fi
 
-  out_mount_info
-  out_newline
+  write_mount_information
+  write_newline
 }
 
 #
 # unmount single path
 #
-function run_unmount_on() {
-  get_mount_info "${1}"
+function run_dismount_on() {
+  get_mount_data "${1}"
 
-  if [[ ${mount_info[stat]} -eq 0 ]]; then
-    umount ${mount_info[path]} &> /dev/null
-    if [[ $? -ne 0 ]] || [[ $(mount | grep ${mount_info[path]}) ]]; then
-      out_status_warn unmount
+  if [[ ${mount_data["stat"]} -eq 0 ]]; then
+    umount ${mount_data["path"]} &> /dev/null
+    if [[ $? -ne 0 ]] || [[ $(mount | grep ${mount_data["path"]} 2>/dev/null) ]]; then
+      write_status_warn unmount
     else
-      out_status_okay unmount
+      write_status_okay unmount
     fi
   else
-    out_status_skip unmount
+    write_status_skip unmount
   fi
 
-  out_mount_info
-  out_newline
+  write_mount_information
+  write_newline
 }
 
 #
 # mount single path
 #
 function run_mount_on() {
-  get_mount_info "${1}"
+  get_mount_data "${1}"
 
-  if [[ ${mount_info[stat]} -eq 1 ]]; then
-    mount ${mount_info[path]} &> /dev/null
-    if [[ $? -eq 0 ]] || [[ $(mount | grep ${mount_path}) ]]; then
-      out_status_okay mount
+  if [[ ${mount_data["stat"]} -eq 1 ]]; then
+    mount ${mount_data["path"]} &> /dev/null
+    if [[ $? -eq 0 ]] || [[ $(mount | grep ${mount_data["path"]} 2> /dev/null) ]]; then
+      write_status_okay mount
     else
-      out_status_warn mount
+      write_status_warn mount
     fi
   else
-    out_status_skip mount
+    write_status_skip mount
   fi
 
-  out_mount_info
-  out_newline
+  write_mount_information
+  write_newline
 }
 
 #
 # output command usage information
 #
-function run_action_usage() {
-  out_usage_command "c|config" "s|status" "m|mount|on|up" "u|umount|off|dn"
+function action_out_usage() {
+  write_cli_commands "c|config" "s|status" "m|mount|on|up" "u|umount|off|dn"
 
-  out_usage_parameter "status"  "Display the status and configuration of defined mount points"
-  out_usage_parameter "mount"   "Mount all configured mount paths (skipping those already mounted)"
-  out_usage_parameter "unmount" "Unmount all configured mount paths (if possible and not in use)"
-  out_usage_parameter "config"  "Display the active configuration information (mounts, paths, etc)"
+  write_cli_option "status"  "Display the status and configuration of defined mount points"
+  write_cli_option "mount"   "Mount all configured mount paths (skipping those already mounted)"
+  write_cli_option "unmount" "Unmount all configured mount paths (if possible and not in use)"
+  write_cli_option "config"  "Display the active configuration information (mounts, paths, etc)"
 }
 
 #
 # run show mount status on all paths
 #
-function run_action_config() {
+function action_out_config() {
   local i=1
 
-  out_header "Config"
-  out_config "mounts-cfg" "${FILEPATH_MOUNT_CONF}"
-  out_config "bright-lib" "${FILEPATH_BRIGHT_LIB}"
-  out_newline
+  write_header "Config"
+  write_definition "mounts-cfg" "${PATH_USER_MOUNT}"
+  write_definition "bright-lib" "${PATH_BRIGHT_LIB}"
+  write_newline
 
-  out_header "Mounts"
-  for m in $(get_mounts); do
-    out_config "mount-$(printf "%03d" ${i})" "${m}"
+  write_header "Mounts"
+  for m in $(get_mount_conf); do
+    write_definition "mount-$(printf "%03d" ${i})" "${m}"
     i=$(($i + 1))
   done
 }
@@ -332,37 +393,37 @@ function run_action_config() {
 #
 # run show mount status on all paths
 #
-function run_action_status() {
+function action_run_status() {
   local i=1
 
-  out_header "Status"
+  write_header "Status"
 
-  for m in $(get_mounts); do
+  for m in $(get_mount_conf); do
     run_status_on "${m}" "${i}"
     i=$(($i + 1))
   done
 }
 
 #
-# run unmount operations on all paths
+# run dismount operations on all paths
 #
-function run_action_unmount() {
-  req_root
-  out_header "Unmount"
+function action_run_dismount() {
+  is_user_root
+  write_header "Unmount"
 
-  for m in $(get_mounts); do
-    run_unmount_on "${m}"
+  for m in $(get_mount_conf); do
+    run_dismount_on "${m}"
   done
 }
 
 #
 # run mount operations on all paths
 #
-function run_action_mount() {
-  req_root
-  out_header "Mount"
+function action_run_mount() {
+  is_user_root
+  write_header "Mount"
 
-  for m in $(get_mounts); do
+  for m in $(get_mount_conf); do
     run_mount_on "${m}"
   done
 }
@@ -371,29 +432,30 @@ function run_action_mount() {
 # main function
 #
 function main() {
-  case "${1:-usage}" in
-    c|config)
-      run_ensure_mounts
-      run_action_config
-      ;;
+  is_mount_config_present
 
+  case "${1:-usage}" in
     s|status)
-      run_ensure_mounts
-      run_action_status
+      is_mount_config_valid
+      action_run_status
       ;;
 
     m|mount|up|on)
-      run_ensure_mounts
-      run_action_mount
+      is_mount_config_valid
+      action_run_mount
       ;;
 
     u|unmount|dn|off)
-      run_ensure_mounts
-      run_action_unmount
+      is_mount_config_valid
+      action_run_dismount
+      ;;
+
+    c|config)
+      action_out_config
       ;;
 
     usage|*)
-      run_action_usage
+      action_out_usage
       ;;
   esac
 }
