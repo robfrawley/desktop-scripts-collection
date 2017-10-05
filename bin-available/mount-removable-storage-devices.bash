@@ -1,191 +1,33 @@
 #!/bin/bash
 
+##
+ # This file is part of the `src-run/server-scripts` project.
+ #
+ # (c) https://github.com/src-run/server-scripts/graphs/contributors
+ #
+ # For the full copyright and license information, please view the LICENSE.md
+ # file that was distributed with this source code.
+ ##
+
+#
+# internal variables
+#
+readonly _SELF_PATH="$(cd "$(dirname "${BASH_SOURCE}")" && pwd)"
+
 #
 # configuration variables
 #
-PATH_BRIGHT_LIB="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../lib/bright-library/bright.bash"
-PATH_USER_MOUNT="${HOME}/.removable-storage-device-mounts"
+readonly PATH_USER_MOUNT="${HOME}/.removable-storage-device-mounts"
 
 #
-# source the bright library
+# source dependencies
 #
-if [[ ! -f "${PATH_BRIGHT_LIB}" ]]; then
-  echo "Unable to source required \"bright library\" dependency at \"${PATH_BRIGHT_LIB}\"."
-  exit -1
-else
-  source "${PATH_BRIGHT_LIB}"
-fi
+source "${_SELF_PATH}/../lib/core-library/core.bash" || exit 255
 
 #
 # setup global-scope variable containing active mount info
 #
 declare -Ag mount_data=(["path"]="" ["uuid"]="" ["opts"]="" ["type"]="")
-
-#
-# write out space character
-#
-function write_space() {
-  echo -en " "
-}
-
-#
-# write out newline character
-#
-function write_newline() {
-  echo -en "\n"
-}
-
-#
-# write out error message and optionally exit
-#
-function write_error() {
-  local returns="${1:-0}"
-  local message="${2:-An undefined error occurred!}"
-
-  bright_out_builder " ERROR " "color:white" "color_bg:red" "control:style bold"
-  bright_out_builder " ${message}...\n" "color:white"
-
-  if [[ ${returns} -ne 0 ]]; then
-    exit ${returns}
-  fi
-}
-
-#
-# write out command header
-#
-function write_header() {
-  local header="${1}"
-
-  bright_out_builder " -- ${header^^} -- \n" "color:magenta" "control:style bold" "control:style reverse"
-}
-
-#
-# write out command status
-#
-function write_status() {
-  local index="${1}"
-  local value="${2}"
-  local color_fb="${3}"
-  local color_bg="${4}"
-  local style_bold="${5:-0}"
-
-  write_section_init "${index}"
-
-  if [[ ${style_bold} -eq 0 ]]; then
-    bright_out_builder " ${value} " "color:${color_fb}" "control:style reverse" "color_bg:${color_bg}" "control:style bold"
-  else
-    bright_out_builder " ${value} " "color:${color_fb}" "control:style reverse" "color_bg:${color_bg}"
-  fi
-
-  write_section_stop
-}
-
-#
-# write out command status okay
-#
-function write_status_okay() {
-  write_status "${1}" "${2:-okay}" green black
-}
-
-#
-# write out command status warn
-#
-function write_status_warn() {
-  write_status "${1}" "${2:-warn}" red white
-}
-
-#
-# write out command status skip
-#
-function write_status_skip() {
-  write_status "${1}" "${2:-skip}" blue black 1
-}
-
-#
-# write out whole section
-#
-function write_section() {
-  local section="${1}"
-  local value="${2}"
-  local style="${3:-none}"
-
-  write_section_init "${section}"
-  write_section_data "${value}" "white" "${style}"
-  write_section_stop
-}
-
-#
-# write out section name and beginning delimiter
-#
-function write_section_init() {
-  local section="${1}"
-
-  bright_out_builder "${section}=[" "color:white" "control:style bright"
-}
-
-#
-# write out section contents
-#
-function write_section_data() {
-  local value="${1}"
-  local color="${2:-white}"
-  local style="${3:-none}"
-
-  if [[ "${style}" == "none" ]]; then
-    bright_out_builder "${value}" "color:${color}"
-  else
-    bright_out_builder "${value}" "color:${color}" "control:style ${style}"
-  fi
-}
-
-#
-# write out section ending delimiter
-#
-function write_section_stop() {
-  bright_out_builder "] " "color:white" "control:style bright"
-}
-
-#
-# write out definition name and value
-#
-function write_definition() {
-  local index="${1}"
-  local value="${2}"
-
-  write_section_init "${index}"
-  write_section_data "${value}"
-  write_section_stop
-
-  write_newline
-}
-
-#
-# write out usage cli parameter and description
-#
-function write_cli_option() {
-  local parameter="${1}"
-  local description="${2}"
-
-  printf "\t%-7s %s" ${parameter}
-  write_space
-  bright_out_builder "${description}" "control:style bright"
-
-  write_newline
-}
-
-#
-# write out usage command information
-#
-function write_cli_commands() {
-  bright_out_builder "Usage:\n\t./${0##*/}" "control:style bold"
-
-  for parameter in ${@}; do
-    bright_out_builder " [${parameter}]" "control:style bold" "control:style bright"
-  done
-
-  write_newline
-  write_newline
-}
 
 #
 # write out the basic mount information from the global array
@@ -195,15 +37,6 @@ function write_mount_information() {
   write_section "path" "${mount_data["path"]}" bold
   write_section "type" "${mount_data["type"]}"
   write_section "opts" "${mount_data["opts"]}"
-}
-
-#
-# require elevated privileges or display error
-#
-function is_user_root() {
-  if [[ $EUID -ne 0 ]]; then
-    write_error 255 "This action MUST be run with elevated privileges. Perhaps you should use \"sudo\" to do so"
-  fi
 }
 
 #
@@ -378,16 +211,21 @@ function action_out_usage() {
 function action_out_config() {
   local i=1
 
-  write_header "Config"
-  write_definition "mounts-cfg" "${PATH_USER_MOUNT}"
-  write_definition "bright-lib" "${PATH_BRIGHT_LIB}"
   write_newline
+  write_header "Config"
+  write_definition "mounts-config" "${PATH_USER_MOUNT}"
+  for dependency_name in "${!_DEPS_RESOLVED[@]}"; do
+    write_definition "depend-${dependency_name}" "${_DEPS_RESOLVED[$dependency_name]}"
+  done
 
+  write_newline
   write_header "Mounts"
   for m in $(get_mount_conf); do
-    write_definition "mount-$(printf "%03d" ${i})" "${m}"
+    write_definition "mount-dir-$(printf "%03d" ${i})" "${m}"
     i=$(($i + 1))
   done
+
+  write_newline
 }
 
 #
@@ -396,36 +234,47 @@ function action_out_config() {
 function action_run_status() {
   local i=1
 
+  write_newline
   write_header "Status"
 
   for m in $(get_mount_conf); do
     run_status_on "${m}" "${i}"
     i=$(($i + 1))
   done
+
+  write_newline
 }
 
 #
 # run dismount operations on all paths
 #
 function action_run_dismount() {
-  is_user_root
+  _user_require_root
+
+  write_newline
   write_header "Unmount"
 
   for m in $(get_mount_conf); do
     run_dismount_on "${m}"
   done
+
+  write_newline
 }
 
 #
 # run mount operations on all paths
 #
 function action_run_mount() {
-  is_user_root
+  _user_require_root
+
+  write_newline
   write_header "Mount"
 
   for m in $(get_mount_conf); do
     run_mount_on "${m}"
   done
+
+  write_newline
 }
 
 #
@@ -434,7 +283,7 @@ function action_run_mount() {
 function main() {
   is_mount_config_present
 
-  case "${1:-usage}" in
+  case "${1,,}" in
     s|status)
       is_mount_config_valid
       action_run_status
@@ -445,12 +294,12 @@ function main() {
       action_run_mount
       ;;
 
-    u|unmount|dn|off)
+    u|umount|unmount|dn|off)
       is_mount_config_valid
       action_run_dismount
       ;;
 
-    c|config)
+    c|cfg|config)
       action_out_config
       ;;
 

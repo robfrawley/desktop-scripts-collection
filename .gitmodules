@@ -1,3 +1,9 @@
 [submodule "bright-library"]
 	path = lib/bright-library
 	url = https://github.com/src-run/bright-library.git
+[submodule "lib/core-library"]
+	path = lib/core-library
+	url = https://github.com/src-run/bash-core-library.git
+[submodule "lib/writer-library"]
+	path = lib/writer-library
+	url = https://github.com/src-run/bash-writer-library.git
